@@ -2,7 +2,7 @@
 #define FFATSENSOR_H
 
 #ifndef ESP32
-#warning sensorState will only work on ESP32 MCUs
+#warning FFatSensor will only work on ESP32 MCUs
 #endif
 
 #include "Task.h"
@@ -43,10 +43,8 @@ class FFatSensor: public Task {
     bool                  isErrorLogging();
     bool                  startTempLogging( const uint32_t seconds=180 );
     bool                  stopTempLogging();
-    bool                  setTempLogging( const bool state );
     bool                  startErrorLogging();
     bool                  stopErrorLogging();
-    void                  setErrorLogging( const bool state );
 
   private:
     void                  run( void * data );
@@ -55,7 +53,6 @@ class FFatSensor: public Task {
     sensorState_t         _state[MAX_NUMBER_OF_SENSORS];
     sensorState_t         _tempState[MAX_NUMBER_OF_SENSORS];
     bool                  _errorlogging = false;
-    bool                  _rescan = false;
 };
 
 #endif //FFATSENSOR_H

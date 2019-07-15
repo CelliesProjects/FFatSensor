@@ -9,12 +9,13 @@
 static const char * ERROR_LOG_NAME = "/sensor_error.txt";
 static const char * UNKNOWN_SENSOR = "unknown sensor";
 
+static OneWire* _wire = nullptr;
+static Preferences sensorPreferences;
+
 static volatile bool tempLogTicker = false;
 static hw_timer_t * tempLogTimer = NULL;
 static portMUX_TYPE timerMux = portMUX_INITIALIZER_UNLOCKED;
-
-static Preferences sensorPreferences;
-static OneWire* _wire = nullptr;
+static bool _rescan = false;
 
 /* static functions */
 static void IRAM_ATTR _onTimer() {
@@ -91,6 +92,10 @@ static bool _logError( const uint8_t num, const char * path, const char * messag
   return true;
 }
 
+static bool _saveTempStateToNVS( const bool state ) {
+  return sensorPreferences.putBool( "logging", state );
+};
+
 /* FFatSensor member functions */
 FFatSensor::FFatSensor() {}
 FFatSensor::~FFatSensor() {}
@@ -160,23 +165,13 @@ bool FFatSensor::isTempLogging() {
   return ( NULL != tempLogTimer );
 }
 
-bool FFatSensor::setTempLogging( const bool state ) {
-  bool result = sensorPreferences.putBool( "logging", state );
-  return result;
-};
-
 bool FFatSensor::isErrorLogging() {
   return _errorlogging;
 }
 
-void FFatSensor::setErrorLogging( const bool state ) {
-  _errorlogging = state;
-  return;
-}
-
 bool FFatSensor::stopTempLogging() {
-  if (tempLogTimer == NULL ) return false;
-  setTempLogging( false );
+  if ( NULL == tempLogTimer ) return false;
+  _saveTempStateToNVS( false );
   timerAlarmDisable(tempLogTimer);
   timerDetachInterrupt(tempLogTimer);
   timerEnd(tempLogTimer);
@@ -190,7 +185,7 @@ bool FFatSensor::startTempLogging( const uint32_t seconds ) {
   timerAttachInterrupt(tempLogTimer, &_onTimer, true);
   timerAlarmWrite(tempLogTimer, seconds * 1000000, true);
   timerAlarmEnable(tempLogTimer);
-  setTempLogging( true );
+  _saveTempStateToNVS( true );
   _onTimer();
   return true;
 }
@@ -330,3 +325,4 @@ uint8_t FFatSensor::_scanSensors() {
   _rescan = false;
   return num;
 }
+
