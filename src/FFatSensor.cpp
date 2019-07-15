@@ -1,5 +1,5 @@
-#include <rom/rtc.h>               /* should be installed together with ESP32 Arduino install */
-#include <list>                    /* should be installed together with ESP32 Arduino install */
+#include <rom/rtc.h>
+#include <list>
 #include <FFat.h>
 #include <OneWire.h>
 #include <Preferences.h>
@@ -96,7 +96,7 @@ FFatSensor::FFatSensor() {}
 FFatSensor::~FFatSensor() {}
 
 bool FFatSensor::startSensors(uint8_t pin) {
-  if ( nullptr != _pFFatSensor ) {
+  if ( nullptr != _wire ) {
     ESP_LOGE( TAG, "Sensors already running. Exiting." );
     return false;
   }
@@ -105,79 +105,72 @@ bool FFatSensor::startSensors(uint8_t pin) {
     ESP_LOGE( TAG, "OneWire not created. (low mem?) Exiting." );
     return false;
   }
-  _pFFatSensor = this;
   sensorPreferences.begin( "FFatSensor", false );
-  this->setStackSize(3500);
-  this->setCore(1);
-  this->setPriority(0);
-  this->start();
+  setStackSize(3500);
+  setCore(1);
+  setPriority(0);
+  start();
   if ( sensorPreferences.getBool( "logging", false ) )
     startTempLogging();
   return true;
 }
 
 uint8_t FFatSensor::count() {
-  return ( nullptr == _pFFatSensor ) ? 0 : _pFFatSensor->_count;
+  return _count;
 }
 
 void FFatSensor::rescan() {
-  _pFFatSensor->_rescan = true;
+  _rescan = true;
 }
 
 float FFatSensor::temp( const uint8_t num ) {
-  return ( nullptr == _pFFatSensor ) ? NAN : _pFFatSensor->_state[num].tempCelsius;
+  return _state[num].tempCelsius;
 }
 
 bool FFatSensor::error( const uint8_t num ) {
-  return ( nullptr == _pFFatSensor ) ? true : _pFFatSensor->_state[num].error;
+  return _state[num].error;
 }
 
 const char * FFatSensor::getName( const uint8_t num, sensorName_t &name ) {
-  if ( nullptr == _pFFatSensor ) return name;
   sensorId_t id;
   getId( num, id );
   return getName( id, name );
 }
 
 const char * FFatSensor::getName( const sensorName_t &id, sensorName_t &name ) {
-  if ( nullptr == _pFFatSensor ) return name;
   String result = sensorPreferences.getString( id, UNKNOWN_SENSOR );
   if ( result ) strncpy( name, result.c_str(), sizeof( sensorName_t ) );
   return name;
 }
 
 bool FFatSensor::setName( const sensorId_t &id, const char * name ) {
-  if ( nullptr == _pFFatSensor ) return name;
   if ( 0 == strlen( name ) ) return sensorPreferences.remove( id );
   if ( strlen( name ) > sizeof( sensorName_t ) ) return false;
   return sensorPreferences.putString( id, name );
 }
 
 const char * FFatSensor::getId( const uint8_t num, sensorId_t &id ) {
-  if ( nullptr == _pFFatSensor ) return id;
   snprintf( id, sizeof( sensorId_t ), "%02x%02x%02x%02x%02x%02x%02x",
-            _pFFatSensor->_state[num].addr[1], _pFFatSensor->_state[num].addr[2], _pFFatSensor->_state[num].addr[3], _pFFatSensor->_state[num].addr[4],
-            _pFFatSensor->_state[num].addr[5], _pFFatSensor->_state[num].addr[6], _pFFatSensor->_state[num].addr[7] );
+            _state[num].addr[1], _state[num].addr[2], _state[num].addr[3], _state[num].addr[4],
+            _state[num].addr[5], _state[num].addr[6], _state[num].addr[7] );
   return id;
 }
 
 bool FFatSensor::isTempLogging() {
-  return ( nullptr == _pFFatSensor ) ? false : NULL != tempLogTimer;
+  return ( NULL != tempLogTimer );
 }
 
 bool FFatSensor::setTempLogging( const bool state ) {
-  if ( nullptr == _pFFatSensor ) return false;
   bool result = sensorPreferences.putBool( "logging", state );
   return result;
 };
 
 bool FFatSensor::isErrorLogging() {
-  return ( nullptr == _pFFatSensor ) ? false : _pFFatSensor->_errorlogging;
+  return _errorlogging;
 }
 
 void FFatSensor::setErrorLogging( const bool state ) {
-  if ( nullptr == _pFFatSensor ) return;
-  _pFFatSensor->_errorlogging = state;
+  _errorlogging = state;
   return;
 }
 
@@ -203,14 +196,12 @@ bool FFatSensor::startTempLogging( const uint32_t seconds ) {
 }
 
 bool FFatSensor::startErrorLogging() {
-  if ( nullptr == _pFFatSensor ) return false;
-  _pFFatSensor->_errorlogging = true;
+  _errorlogging = true;
   return true;
 }
 
 bool FFatSensor::stopErrorLogging() {
-  if ( nullptr == _pFFatSensor ) return false;
-  _pFFatSensor->_errorlogging = false;
+  _errorlogging = false;
   return true;
 }
 

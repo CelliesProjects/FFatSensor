@@ -54,7 +54,6 @@ class FFatSensor: public Task {
     uint8_t               _scanSensors();
     sensorState_t         _state[MAX_NUMBER_OF_SENSORS];
     sensorState_t         _tempState[MAX_NUMBER_OF_SENSORS];
-    FFatSensor *          _pFFatSensor = nullptr;
     bool                  _errorlogging = false;
     bool                  _rescan = false;
 };
