@@ -1,0 +1,49 @@
+#######################################
+# syntax coloring map for sensorState
+#######################################
+
+#######################################
+# Datatypes (KEYWORD1)
+#######################################
+FFAtSensor	KEYWORD1
+sensorState_t	KEYWORD1
+sensorName_t	KEYWORD1
+sensorId_t	KEYWORD1
+
+
+#######################################
+# Methods and Functions (KEYWORD2)
+#######################################
+startSensors	KEYWORD2
+rescan	KEYWORD2
+count	KEYWORD2
+temp	KEYWORD2
+error	KEYWORD2
+getName	KEYWORD2
+setName	KEYWORD2
+getId	KEYWORD2
+setName	KEYWORD2
+isTempLogging	KEYWORD2
+setTempLogging	KEYWORD2
+isErrorLogging	KEYWORD2
+startTemperatureLogging KEYWORD2
+stopTemperatureLogging KEYWORD2
+startErrorLogging KEYWORD2
+stopErrorLogging KEYWORD2
+isErrorLogging	KEYWORD2
+setErrorLogging	KEYWORD2
+
+#######################################
+# Instances (KEYWORD2)
+######################################
+id	KEYWORD3
+name	KEYWORD3
+sensor	KEYWORD3
+sensors	KEYWORD3
+
+#######################################
+# Constants (LITERAL1)
+#######################################
+SAVED_LOGFILES  LITERAL1
+SENSOR_PIN  LITERAL1
+MAX_NUMBER_OF_SENSORS LITERAL1
