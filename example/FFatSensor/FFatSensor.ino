@@ -1,3 +1,4 @@
+#include <Task.h>
 #include <FFat.h>
 #include <FFatSensor.h>                                                        // 0. Include the library
 /* Should be compiled with a FFat partition in Tools>Partition scheme */
