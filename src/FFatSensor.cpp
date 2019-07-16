@@ -13,9 +13,12 @@ static OneWire* _wire = nullptr;
 static Preferences sensorPreferences;
 
 static volatile bool tempLogTicker = false;
-static hw_timer_t * tempLogTimer = NULL;
-static portMUX_TYPE timerMux = portMUX_INITIALIZER_UNLOCKED;
+static hw_timer_t *   tempLogTimer = NULL;
+static portMUX_TYPE       timerMux = portMUX_INITIALIZER_UNLOCKED;
+
 static bool _rescan = false;
+
+static FFatSensor::sensorState_t _tempState[MAX_NUMBER_OF_SENSORS];
 
 /* static functions */
 static void IRAM_ATTR _onTimer() {
@@ -169,16 +172,6 @@ bool FFatSensor::isErrorLogging() {
   return _errorlogging;
 }
 
-bool FFatSensor::stopTempLogging() {
-  if ( NULL == tempLogTimer ) return false;
-  _saveTempStateToNVS( false );
-  timerAlarmDisable(tempLogTimer);
-  timerDetachInterrupt(tempLogTimer);
-  timerEnd(tempLogTimer);
-  tempLogTimer = NULL;
-  return true;
-}
-
 bool FFatSensor::startTempLogging( const uint32_t seconds ) {
   if ( NULL != tempLogTimer ) return false;
   tempLogTimer = timerBegin(0, 80, true);
@@ -187,6 +180,16 @@ bool FFatSensor::startTempLogging( const uint32_t seconds ) {
   timerAlarmEnable(tempLogTimer);
   _saveTempStateToNVS( true );
   _onTimer();
+  return true;
+}
+
+bool FFatSensor::stopTempLogging() {
+  if ( NULL == tempLogTimer ) return false;
+  _saveTempStateToNVS( false );
+  timerAlarmDisable(tempLogTimer);
+  timerDetachInterrupt(tempLogTimer);
+  timerEnd(tempLogTimer);
+  tempLogTimer = NULL;
   return true;
 }
 

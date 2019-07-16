@@ -5,7 +5,7 @@
 #warning FFatSensor will only work on ESP32 MCUs
 #endif
 
-#include "Task.h"
+#include <Task.h>
 
 #define SAVED_LOGFILES          30
 #define SENSOR_PIN              5
@@ -51,7 +51,6 @@ class FFatSensor: public Task {
     uint8_t               _count = 0;
     uint8_t               _scanSensors();
     sensorState_t         _state[MAX_NUMBER_OF_SENSORS];
-    sensorState_t         _tempState[MAX_NUMBER_OF_SENSORS];
     bool                  _errorlogging = false;
 };
 
