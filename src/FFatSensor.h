@@ -13,9 +13,15 @@
 
 #define VALID_ID_LENGTH         14
 
+#define TEMPLOG_ON  true
+#define TEMPLOG_OFF false
+
 typedef char sensorId_t[VALID_ID_LENGTH + 1];
 typedef char sensorName_t[15];
 typedef byte sensorAddr_t[8];
+
+enum         timeStamp_t { NO_TIME, UNIX_TIME, HUMAN_TIME, MILLIS_TIME };
+typedef char timeStampBuffer_t[20];
 
 class FFatSensor: public Task {
 
@@ -31,27 +37,31 @@ class FFatSensor: public Task {
     virtual ~FFatSensor();
 
     bool                  startSensors(uint8_t pin);
-    void                  rescan();
-    uint8_t               count();
-    float                 temp( const uint8_t num );
-    bool                  error( const uint8_t num );
-    const char *          getName( const uint8_t num, sensorName_t &name );
-    const char *          getName( const sensorName_t &id, sensorName_t &name );
-    const char *          getId( const uint8_t num, sensorId_t &id );
-    bool                  setName( const sensorId_t &id, const char * name );
+    void                  rescanSensors();
+    uint8_t               sensorCount();
+    float                 sensorTemp( const uint8_t num );
+    bool                  sensorError( const uint8_t num );
+    const char *          getSensorName( const uint8_t num, sensorName_t &name );
+    const char *          getSensorName( const sensorName_t &id, sensorName_t &name );
+    const char *          getSensorId( const uint8_t num, sensorId_t &id );
+    bool                  setSensorName( const sensorId_t &id, const char * name );
     bool                  isTempLogging();
     bool                  isErrorLogging();
     bool                  startTempLogging( const uint32_t seconds=180 );
     bool                  stopTempLogging();
     bool                  startErrorLogging();
     bool                  stopErrorLogging();
+    bool                  appendToFile( const char * path, timeStamp_t ts, const char * message );
+    const char *          timeStamp( const timeStamp_t type , timeStampBuffer_t &buf );
 
   private:
-    void                  run( void * data );
     uint8_t               _count = 0;
-    uint8_t               _scanSensors();
     sensorState_t         _state[MAX_NUMBER_OF_SENSORS];
     bool                  _errorlogging = false;
+    void                  run( void * data );
+    uint8_t               _scanSensors();
+    bool                  _writelnFile( const char * path, const char * message );
+    bool                  _logError( const uint8_t num, const char * path, const char * message, const byte data[9] );
 };
 
 #endif //FFATSENSOR_H
