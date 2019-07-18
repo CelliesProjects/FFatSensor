@@ -10,6 +10,7 @@ sensorState_t	KEYWORD1
 sensorName_t	KEYWORD1
 sensorId_t	KEYWORD1
 timeStamp_t	KEYWORD1
+timeStampBuffer_t	KEYWORD1
 
 #######################################
 # Methods and Functions (KEYWORD2)
@@ -20,7 +21,6 @@ sensorCount	KEYWORD2
 sensorTemp	KEYWORD2
 sensorError	KEYWORD2
 getSensorName	KEYWORD2
-setName	KEYWORD2
 getSensorId	KEYWORD2
 setSensorName	KEYWORD2
 isTempLogging	KEYWORD2
@@ -29,7 +29,6 @@ startTempLogging KEYWORD2
 stopTempLogging KEYWORD2
 startErrorLogging KEYWORD2
 stopErrorLogging KEYWORD2
-isErrorLogging	KEYWORD2
 appendToFile	KEYWORD2
 timeStamp	KEYWORD2
 
