@@ -25,7 +25,7 @@ getSensorId	KEYWORD2
 setSensorName	KEYWORD2
 isTempLogging	KEYWORD2
 isErrorLogging	KEYWORD2
-startTemLogging KEYWORD2
+startTempLogging KEYWORD2
 stopTempLogging KEYWORD2
 startErrorLogging KEYWORD2
 stopErrorLogging KEYWORD2
