@@ -37,12 +37,12 @@ public:
   float                 sensorTemp( const uint8_t num );
   bool                  sensorError( const uint8_t num );
   const char *          getSensorName( const uint8_t num, sensorName_t &name );
-  const char *          getSensorName( const sensorName_t &id, sensorName_t &name );
+  const char *          getSensorName( const sensorId_t &id, sensorName_t &name );
   const char *          getSensorId( const uint8_t num, sensorId_t &id );
   bool                  setSensorName( const sensorId_t &id, const char * name );
   bool                  isTempLogging();
   bool                  isErrorLogging();
-  bool                  startTempLogging( const uint32_t seconds=180 );
+  bool                  startTempLogging( const uint32_t seconds = 180 );
   bool                  stopTempLogging();
   bool                  startErrorLogging();
   bool                  stopErrorLogging();
