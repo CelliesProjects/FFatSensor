@@ -113,7 +113,7 @@ const char * FFatSensor::getSensorName( const uint8_t num, sensorName_t &name ) 
   return getSensorName( id, name );
 }
 
-const char * FFatSensor::getSensorName( const sensorName_t &id, sensorName_t &name ) {
+const char * FFatSensor::getSensorName( const sensorId_t &id, sensorName_t &name ) {
   String result = sensorPreferences.getString( id, UNKNOWN_SENSOR );
   if ( result ) strncpy( name, result.c_str(), sizeof( sensorName_t ) );
   return name;
