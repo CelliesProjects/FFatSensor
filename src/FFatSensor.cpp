@@ -187,7 +187,7 @@ const char * FFatSensor::timeStamp( const timeStamp_t type , timeStampBuffer_t &
     }
     case HUMAN_TIME: {
       struct tm timeinfo = {0};
-      getLocalTime( &timeinfo );
+      getLocalTime( &timeinfo, 0 );
       strftime( buf , sizeof( timeStampBuffer_t ), "%x %X ", &timeinfo );
       break;
     }
