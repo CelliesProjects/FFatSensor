@@ -1,20 +1,24 @@
-#include <rom/rtc.h>               /* should be installed together with ESP32 Arduino install */
-#include <list>                    /* should be installed together with ESP32 Arduino install */
+#include <rom/rtc.h>
+#include <list>
 #include <FFat.h>
 #include <OneWire.h>
 #include <Preferences.h>
 
 #include "FFatSensor.h"
 
-static const char * ERROR_LOG_NAME = "/sensor_error.txt";
-static const char * UNKNOWN_SENSOR = "unknown sensor";
+static const char * SENSORERROR_FILENAME = "/sensor_error.txt";
+static const char * UNKNOWN_SENSOR       = "unknown sensor";
+
+static OneWire* _wire = nullptr;
+static Preferences sensorPreferences;
 
 static volatile bool tempLogTicker = false;
-static hw_timer_t * tempLogTimer = NULL;
-static portMUX_TYPE timerMux = portMUX_INITIALIZER_UNLOCKED;
+static hw_timer_t *   tempLogTimer = NULL;
+static portMUX_TYPE       timerMux = portMUX_INITIALIZER_UNLOCKED;
 
-static Preferences sensorPreferences;
-static OneWire* _wire = nullptr;
+static bool _rescan = false;
+
+static FFatSensor::sensorState_t _tempState[MAX_NUMBER_OF_SENSORS];
 
 /* static functions */
 static void IRAM_ATTR _onTimer() {
@@ -23,19 +27,8 @@ static void IRAM_ATTR _onTimer() {
   portEXIT_CRITICAL_ISR(&timerMux);
 }
 
-static bool _writelnFile( fs::FS &fs, const char * path, const char * message ) {
-  File file = fs.open( path, FILE_APPEND );
-  if ( !file ) return false;
-  if ( !file.println( message ) ) {
-    file.close();
-    return false;
-  }
-  file.close();
-  return true;
-}
-
 static void _deleteOldLogfiles( fs::FS &fs, const char * dirname, uint8_t levels ) {
-  File root = fs.open( dirname );
+  File root = FFat.open( dirname );
   if ( !root ) {
     ESP_LOGE( TAG, "Failed to open %s", dirname );
     return;
@@ -65,38 +58,21 @@ static void _deleteOldLogfiles( fs::FS &fs, const char * dirname, uint8_t levels
     thisFile = logFiles.begin();
     String filename = *thisFile;
     ESP_LOGI( TAG, "Deleting oldest log file %s", filename.c_str() );
-    fs.remove( filename.c_str() );
+    FFat.remove( filename.c_str() );
     logFiles.erase( thisFile );
   }
 }
 
-static bool _logError( const uint8_t num, const char * path, const char * message, const byte data[9] ) {
-  File file = FFat.open( path, FILE_APPEND );
-  if ( !file ) return false;
-  time_t rawtime;
-  struct tm * timeinfo;
-  time ( &rawtime );
-  timeinfo = localtime ( &rawtime );
-  char timeBuff[20];
-  strftime ( timeBuff, sizeof( timeBuff ), "%x %X", timeinfo );
-  char buffer[100];
-  snprintf( buffer, sizeof( buffer ), "%s - sensor:%i %s %02X:%02X:%02X:%02X:%02X:%02X:%02X:%02X:%02X", timeBuff, num, message,
-            data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7], data[8] );
-  ESP_LOGE( TAG, "Writing sensor error: %s", buffer );
-  if ( !file.println( buffer ) ) {
-    file.close();
-    return false;
-  }
-  file.close();
-  return true;
-}
+static bool _saveTempLogStateToNVS( const bool state ) {
+  return sensorPreferences.putBool( "logging", state );
+};
 
 /* FFatSensor member functions */
 FFatSensor::FFatSensor() {}
 FFatSensor::~FFatSensor() {}
 
 bool FFatSensor::startSensors(uint8_t pin) {
-  if ( nullptr != _pFFatSensor ) {
+  if ( nullptr != _wire ) {
     ESP_LOGE( TAG, "Sensors already running. Exiting." );
     return false;
   }
@@ -105,90 +81,63 @@ bool FFatSensor::startSensors(uint8_t pin) {
     ESP_LOGE( TAG, "OneWire not created. (low mem?) Exiting." );
     return false;
   }
-  _pFFatSensor = this;
   sensorPreferences.begin( "FFatSensor", false );
-  this->setStackSize(3500);
-  this->setCore(1);
-  this->setPriority(0);
-  this->start();
+  setStackSize(3500);
+  setCore(1);
+  setPriority(0);
+  start();
   if ( sensorPreferences.getBool( "logging", false ) )
     startTempLogging();
   return true;
 }
 
-uint8_t FFatSensor::count() {
-  return ( nullptr == _pFFatSensor ) ? 0 : _pFFatSensor->_count;
+uint8_t FFatSensor::sensorCount() {
+  return _count;
 }
 
-void FFatSensor::rescan() {
-  _pFFatSensor->_rescan = true;
+void FFatSensor::rescanSensors() {
+  _rescan = true;
 }
 
-float FFatSensor::temp( const uint8_t num ) {
-  return ( nullptr == _pFFatSensor ) ? NAN : _pFFatSensor->_state[num].tempCelsius;
+float FFatSensor::sensorTemp( const uint8_t num ) {
+  return _state[num].tempCelsius;
 }
 
-bool FFatSensor::error( const uint8_t num ) {
-  return ( nullptr == _pFFatSensor ) ? true : _pFFatSensor->_state[num].error;
+bool FFatSensor::sensorError( const uint8_t num ) {
+  return _state[num].error;
 }
 
-const char * FFatSensor::getName( const uint8_t num, sensorName_t &name ) {
-  if ( nullptr == _pFFatSensor ) return name;
+const char * FFatSensor::getSensorName( const uint8_t num, sensorName_t &name ) {
   sensorId_t id;
-  getId( num, id );
-  return getName( id, name );
+  getSensorId( num, id );
+  return getSensorName( id, name );
 }
 
-const char * FFatSensor::getName( const sensorName_t &id, sensorName_t &name ) {
-  if ( nullptr == _pFFatSensor ) return name;
+const char * FFatSensor::getSensorName( const sensorId_t &id, sensorName_t &name ) {
   String result = sensorPreferences.getString( id, UNKNOWN_SENSOR );
   if ( result ) strncpy( name, result.c_str(), sizeof( sensorName_t ) );
   return name;
 }
 
-bool FFatSensor::setName( const sensorId_t &id, const char * name ) {
-  if ( nullptr == _pFFatSensor ) return name;
+bool FFatSensor::setSensorName( const sensorId_t &id, const char * name ) {
   if ( 0 == strlen( name ) ) return sensorPreferences.remove( id );
   if ( strlen( name ) > sizeof( sensorName_t ) ) return false;
   return sensorPreferences.putString( id, name );
 }
 
-const char * FFatSensor::getId( const uint8_t num, sensorId_t &id ) {
-  if ( nullptr == _pFFatSensor ) return id;
+const char * FFatSensor::getSensorId( const uint8_t num, sensorId_t &id ) {
   snprintf( id, sizeof( sensorId_t ), "%02x%02x%02x%02x%02x%02x%02x",
-            _pFFatSensor->_state[num].addr[1], _pFFatSensor->_state[num].addr[2], _pFFatSensor->_state[num].addr[3], _pFFatSensor->_state[num].addr[4],
-            _pFFatSensor->_state[num].addr[5], _pFFatSensor->_state[num].addr[6], _pFFatSensor->_state[num].addr[7] );
+            _state[num].addr[1], _state[num].addr[2], _state[num].addr[3], _state[num].addr[4],
+            _state[num].addr[5], _state[num].addr[6], _state[num].addr[7] );
   return id;
 }
 
 bool FFatSensor::isTempLogging() {
-  return ( nullptr == _pFFatSensor ) ? false : NULL != tempLogTimer;
+  return ( NULL != tempLogTimer );
 }
-
-bool FFatSensor::setTempLogging( const bool state ) {
-  if ( nullptr == _pFFatSensor ) return false;
-  bool result = sensorPreferences.putBool( "logging", state );
-  return result;
-};
 
 bool FFatSensor::isErrorLogging() {
-  return ( nullptr == _pFFatSensor ) ? false : _pFFatSensor->_errorlogging;
-}
-
-void FFatSensor::setErrorLogging( const bool state ) {
-  if ( nullptr == _pFFatSensor ) return;
-  _pFFatSensor->_errorlogging = state;
-  return;
-}
-
-bool FFatSensor::stopTempLogging() {
-  if (tempLogTimer == NULL ) return false;
-  setTempLogging( false );
-  timerAlarmDisable(tempLogTimer);
-  timerDetachInterrupt(tempLogTimer);
-  timerEnd(tempLogTimer);
-  tempLogTimer = NULL;
-  return true;
+  return _errorlogging;
 }
 
 bool FFatSensor::startTempLogging( const uint32_t seconds ) {
@@ -197,21 +146,58 @@ bool FFatSensor::startTempLogging( const uint32_t seconds ) {
   timerAttachInterrupt(tempLogTimer, &_onTimer, true);
   timerAlarmWrite(tempLogTimer, seconds * 1000000, true);
   timerAlarmEnable(tempLogTimer);
-  setTempLogging( true );
   _onTimer();
+  _saveTempLogStateToNVS( TEMPLOG_ON );
+  return true;
+}
+
+bool FFatSensor::stopTempLogging() {
+  if ( NULL == tempLogTimer ) return false;
+  timerAlarmDisable(tempLogTimer);
+  timerDetachInterrupt(tempLogTimer);
+  timerEnd(tempLogTimer);
+  tempLogTimer = NULL;
+  _saveTempLogStateToNVS( TEMPLOG_OFF );
   return true;
 }
 
 bool FFatSensor::startErrorLogging() {
-  if ( nullptr == _pFFatSensor ) return false;
-  _pFFatSensor->_errorlogging = true;
+  _errorlogging = true;
   return true;
 }
 
 bool FFatSensor::stopErrorLogging() {
-  if ( nullptr == _pFFatSensor ) return false;
-  _pFFatSensor->_errorlogging = false;
+  _errorlogging = false;
   return true;
+}
+
+bool FFatSensor::appendToFile( const char * path, timeStamp_t ts, const char * message ) {
+  char buffer[100];
+  timeStampBuffer_t tsb;
+  snprintf( buffer, sizeof( buffer ), "%s%s", timeStamp( ts, tsb ), message );
+  return _writelnFile( path, buffer );
+}
+
+const char * FFatSensor::timeStamp( const timeStamp_t type , timeStampBuffer_t &buf ) {
+  switch ( type ) {
+   case UNIX_TIME: {
+      time_t t = time(NULL);
+      snprintf( buf , sizeof( timeStampBuffer_t ), "%i,", t );
+      break;
+    }
+    case HUMAN_TIME: {
+      struct tm timeinfo = {0};
+      getLocalTime( &timeinfo, 0 );
+      strftime( buf , sizeof( timeStampBuffer_t ), "%x %X ", &timeinfo );
+      break;
+    }
+    case MILLIS_TIME: {
+      snprintf( buf , sizeof( timeStampBuffer_t ), "%i,", millis() );
+      break;
+    }
+    default: break;
+  }
+  return buf;
 }
 
 void FFatSensor::run( void * data ) {
@@ -219,17 +205,17 @@ void FFatSensor::run( void * data ) {
   while (1) {
     ESP_LOGV( TAG, "Stack left: %i", uxTaskGetStackHighWaterMark( NULL ) );
     if ( _rescan ) loopCounter = _scanSensors();
-    _wire->reset();
-    _wire->write( 0xCC, 0); /* Skip ROM - All sensors */
-    _wire->write( 0x44, 0); /* start conversion, with parasite power off at the end */
+   _wire->reset();
+   _wire->write( 0xCC, 0); /* Skip ROM - All sensors */
+   _wire->write( 0x44, 0); /* start conversion, with parasite power off at the end */
     vTaskDelay( 750 ); //wait for conversion ready
     uint8_t num = 0;
     while ( num < loopCounter ) {
       byte data[12];
-      _tempState[num].error = true; /* we start with an error, which will be cleared if the CRC checks out. */
-      _wire->reset();
-      _wire->select( _tempState[num].addr );
-      _wire->write( 0xBE );         /* Read Scratchpad */
+     _tempState[num].error = true; /* we start with an error, which will be cleared if the CRC checks out. */
+     _wire->reset();
+     _wire->select( _tempState[num].addr );
+     _wire->write( 0xBE );         /* Read Scratchpad */
       for ( byte i = 0; i < 9; i++ ) data[i] = _wire->read(); // we need 9 bytes
       ESP_LOGD( TAG, "Sensor %i data=%02x%02x%02x%02x%02x%02x%02x%02x%02x", num,
                      data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7], data[8] );
@@ -255,8 +241,8 @@ void FFatSensor::run( void * data ) {
       if ( OneWire::crc8( data, 8 ) != data[8] ) {
         _tempState[num].error = true;
         _tempState[num].tempCelsius  = NAN;
-        if ( _errorlogging && !_logError( num, ERROR_LOG_NAME, "BAD_CRC", data ) )
-          ESP_LOGE( TAG, "Error writing to '%s' (disk full/not mounted?)" );
+        if ( _errorlogging && !_logError( num, SENSORERROR_FILENAME, "BAD_CRC", data ) )
+          ESP_LOGE( TAG, "Error writing to '%s' (disk full/not mounted?)", SENSORERROR_FILENAME );
       }
       else {
         int16_t raw = (data[1] << 8) | data[0];
@@ -283,8 +269,8 @@ void FFatSensor::run( void * data ) {
         else {
           _tempState[num].error = true;
           _tempState[num].tempCelsius  = NAN;
-          if ( _errorlogging && !_logError( num, ERROR_LOG_NAME, "BAD_TMP", data ) )
-            ESP_LOGE( TAG, "Error writing to '%s' (disk full/not mounted?)" );
+          if ( _errorlogging && !_logError( num, SENSORERROR_FILENAME, "BAD_TMP", data ) )
+            ESP_LOGE( TAG, "Error writing to '%s' (disk full/not mounted?)", SENSORERROR_FILENAME );
         }
       }
       ESP_LOGD( TAG, "sensor %i: %.1f %s", num, _tempState[num].tempCelsius, _tempState[num].error ? "invalid" : "valid" );
@@ -311,7 +297,7 @@ void FFatSensor::run( void * data ) {
         charCount += snprintf( content + charCount, sizeof( content ) - charCount, "%3.2f", _tempState[0].tempCelsius  );
         for  ( uint8_t sensorNumber = 1; sensorNumber < loopCounter; sensorNumber++ )
           charCount += snprintf( content + charCount, sizeof( content ) - charCount, ",%3.2f", _tempState[sensorNumber].tempCelsius  );
-        if ( !_writelnFile( FFat, fileName, content ) )
+        if ( !_writelnFile( fileName, content ) )
           ESP_LOGE( TAG, "%s", "Failed to write to log file." );
       }
       ESP_LOGD( TAG, "Sensor values '%s' logged to '%s'", content, fileName );
@@ -326,8 +312,8 @@ void FFatSensor::run( void * data ) {
 uint8_t FFatSensor::_scanSensors() {
   uint8_t num = 0;
   sensorAddr_t currentAddr;
-  _wire->reset_search();
-  _wire->target_search(0x28);
+ _wire->reset_search();
+ _wire->target_search(0x28);
   vTaskPrioritySet( NULL, 10 );
   while ( _wire->search( currentAddr ) && ( num < MAX_NUMBER_OF_SENSORS ) ) {
     _tempState[num].error = true;
@@ -338,4 +324,23 @@ uint8_t FFatSensor::_scanSensors() {
   vTaskPrioritySet( NULL, 0);
   _rescan = false;
   return num;
+}
+
+bool FFatSensor::_writelnFile( const char * path, const char * message ) {
+  File file = FFat.open( path, FILE_APPEND );
+  if ( !file ) return false;
+  if ( !file.println( message ) ) {
+    file.close();
+    return false;
+  }
+  file.close();
+  return true;
+}
+
+bool FFatSensor::_logError( const uint8_t num, const char * path, const char * message, const byte data[9] ) {
+  char content[100];
+  snprintf( content, sizeof( content ), " - sensor:%i %s %02X:%02X:%02X:%02X:%02X:%02X:%02X:%02X:%02X", num, message,
+            data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7], data[8] );
+  ESP_LOGE( TAG, "Writing sensor error: %s", content );
+  return appendToFile( path, HUMAN_TIME, content );
 }
