@@ -3,9 +3,9 @@ ESP32 Arduino IDE library for managing OneWire DS18B20 temperature sensors.
 
 #### An easy interface for OneWire DS18B20 sensors.
 
-- Use `logger.startSensors( 5 )` and sensors on GPIO 5 are scanned and running. 
+- `logger.startSensors( 5 )` and sensors on GPIO 5 are scanned and running. 
 - `logger.sensorCount()` gives the number of sensors connected. 
-- With `logger.getSensorTemp( 0 )` gives a temperature reading from the first sensor. 
+- `logger.getSensorTemp( 0 )` gives a temperature reading from the first sensor. 
 
 Runs fine without FFat, but then you have no logging ofcourse.
 
