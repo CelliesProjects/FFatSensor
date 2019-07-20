@@ -1,12 +1,16 @@
 ## FFatSensor
-ESP32 library for managing and logging of DS18B20 temperature sensors.
+ESP32 Arduino IDE library for managing OneWire DS18B20 temperature sensors.
 
-Scan, read and name sensors. Can log sensor values and errors to FATFS. Runs fine without FFat, but then you have no logging ofcourse.
+#### An easy interface for OneWire DS18B20 sensors.
+
+- Use `logger.startSensors( 5 )` and your sensors are scanned and running on GPIO 5. 
+
+Runs fine without FFat, but then you have no logging ofcourse.
 
 #### Depends on:
+- ESP32 FFat library. (only needed to log to file)
 - ESP32 [OneWire](https://github.com/stickbreaker/OneWire) library by stickbreaker.
 - ESP32 [Task](https://github.com/CelliesProjects/Task) by Neil Kolban.
-- ESP32 FFat library. Comes with ESP32 Arduino core. (only needed to log to file)
 
 Install `OneWire` and `Task` in the esp32 libraries folder.
 
