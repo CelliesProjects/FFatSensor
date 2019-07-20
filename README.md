@@ -3,18 +3,22 @@ ESP32 Arduino IDE library for managing OneWire DS18B20 temperature sensors.
 
 #### An easy interface for OneWire DS18B20 sensors.
 
-- Use `logger.startSensors( 5 )` and your sensors are scanned and running on GPIO 5. 
+- Use `logger.startSensors( 5 )` and sensors on GPIO 5 are scanned and running. 
+- `logger.sensorCount()` gives the number of sensors connected. 
+- With `logger.getSensorTemp( 0 )` gives a temperature reading from the first sensor. 
 
 Runs fine without FFat, but then you have no logging ofcourse.
 
 #### Depends on:
 - ESP32 FFat library. (only needed to log to file)
 - ESP32 [OneWire](https://github.com/stickbreaker/OneWire) library by stickbreaker.
+<br>Use this library instead of the standard Arduino version which will not work for ESP32 MCUs.
 - ESP32 [Task](https://github.com/CelliesProjects/Task) by Neil Kolban.
 
-Install `OneWire` and `Task` in the esp32 libraries folder.
+#### How to use:
+Download and install `FFatSensor`, `OneWire` and `Task` in the esp32 libraries folder.
 
-#### Example:
+#### Example code:
 ````c++
 #include <Task.h>
 #include <FFat.h>
