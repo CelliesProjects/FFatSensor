@@ -8,8 +8,6 @@
 #include <Task.h>
 
 #define SAVED_LOGFILES          30
-#define MAX_NUMBER_OF_SENSORS   3
-
 #define VALID_ID_LENGTH         14
 
 #define TEMPLOG_ON  true
@@ -31,7 +29,7 @@ public:
   };
   FFatSensor();
   virtual ~FFatSensor();
-  bool                  startSensors(uint8_t pin);
+  bool                  startSensors( const uint8_t pin, uint8_t maxsensors );
   void                  rescanSensors();
   uint8_t               sensorCount();
   float                 sensorTemp( const uint8_t num );
@@ -50,8 +48,10 @@ public:
   const char *          timeStamp( const timeStamp_t type , timeStampBuffer_t &buf );
 
 private:
+  uint8_t               _maxSensors = 0;
   uint8_t               _count = 0;
-  sensorState_t         _state[MAX_NUMBER_OF_SENSORS];
+  sensorState_t *       _state = nullptr;
+  sensorState_t *       _tempState = nullptr;
   bool                  _errorlogging = false;
   void                  run( void * data );
   uint8_t               _scanSensors();

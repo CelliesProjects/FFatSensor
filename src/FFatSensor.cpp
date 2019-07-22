@@ -18,8 +18,6 @@ static portMUX_TYPE       timerMux = portMUX_INITIALIZER_UNLOCKED;
 
 static bool _rescan = false;
 
-static FFatSensor::sensorState_t _tempState[MAX_NUMBER_OF_SENSORS];
-
 /* static functions */
 static void IRAM_ATTR _onTimer() {
   portENTER_CRITICAL_ISR(&timerMux);
@@ -71,7 +69,7 @@ static bool _saveTempLogStateToNVS( const bool state ) {
 FFatSensor::FFatSensor() {}
 FFatSensor::~FFatSensor() {}
 
-bool FFatSensor::startSensors(uint8_t pin) {
+bool FFatSensor::startSensors( const uint8_t pin, const uint8_t maxsensors ) {
   if ( nullptr != _wire ) {
     ESP_LOGE( TAG, "Sensors already running. Exiting." );
     return false;
@@ -81,6 +79,19 @@ bool FFatSensor::startSensors(uint8_t pin) {
     ESP_LOGE( TAG, "OneWire not created. (low mem?) Exiting." );
     return false;
   }
+  _state = new sensorState_t[maxsensors];
+  if ( nullptr == _state ) {
+    ESP_LOGE( TAG, "No sensors created. Low mem?" );
+    return false;
+  }
+  _tempState = new sensorState_t[maxsensors];
+  if ( nullptr == _tempState ) {
+    ESP_LOGE( TAG, "No sensors created. Low mem?" );
+    return false;
+  }
+  _maxSensors = maxsensors;
+
+  ESP_LOGE( TAG, "created %i sensors", maxsensors );
   sensorPreferences.begin( "FFatSensor", false );
   setStackSize(3500);
   setCore(1);
@@ -276,7 +287,7 @@ void FFatSensor::run( void * data ) {
       ESP_LOGD( TAG, "sensor %i: %.1f %s", num, _tempState[num].tempCelsius, _tempState[num].error ? "invalid" : "valid" );
       num++;
     }
-    memcpy( &_state, &_tempState, sizeof( sensorState_t[ MAX_NUMBER_OF_SENSORS ] ) );
+    _state = _tempState;
     _count = loopCounter;
 
     if ( tempLogTicker ) {
@@ -315,7 +326,7 @@ uint8_t FFatSensor::_scanSensors() {
  _wire->reset_search();
  _wire->target_search(0x28);
   vTaskPrioritySet( NULL, 10 );
-  while ( _wire->search( currentAddr ) && ( num < MAX_NUMBER_OF_SENSORS ) ) {
+  while ( _wire->search( currentAddr ) && ( num < _maxSensors ) ) {
     _tempState[num].error = true;
     _tempState[num].tempCelsius = NAN;
     memcpy( _tempState[num].addr, currentAddr, sizeof( sensorState_t::addr ) );
