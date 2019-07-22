@@ -13,9 +13,9 @@
 #define TEMPLOG_ON  true
 #define TEMPLOG_OFF false
 
+typedef byte sensorAddr_t[8];
 typedef char sensorId_t[VALID_ID_LENGTH + 1];
 typedef char sensorName_t[15];
-typedef byte sensorAddr_t[8];
 
 enum         timeStamp_t { NO_TIME, UNIX_TIME, HUMAN_TIME, MILLIS_TIME };
 typedef char timeStampBuffer_t[20];
@@ -29,7 +29,7 @@ public:
   };
   FFatSensor();
   virtual ~FFatSensor();
-  bool                  startSensors( const uint8_t pin, uint8_t maxsensors );
+  bool                  startSensors( const uint8_t pin, uint8_t num );
   void                  rescanSensors();
   uint8_t               sensorCount();
   float                 sensorTemp( const uint8_t num );

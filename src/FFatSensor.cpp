@@ -69,7 +69,7 @@ static bool _saveTempLogStateToNVS( const bool state ) {
 FFatSensor::FFatSensor() {}
 FFatSensor::~FFatSensor() {}
 
-bool FFatSensor::startSensors( const uint8_t pin, const uint8_t maxsensors ) {
+bool FFatSensor::startSensors( const uint8_t pin, uint8_t num ) {
   if ( nullptr != _wire ) {
     ESP_LOGE( TAG, "Sensors already running. Exiting." );
     return false;
@@ -79,19 +79,19 @@ bool FFatSensor::startSensors( const uint8_t pin, const uint8_t maxsensors ) {
     ESP_LOGE( TAG, "OneWire not created. (low mem?) Exiting." );
     return false;
   }
-  _state = new sensorState_t[maxsensors];
+  _state = new sensorState_t[num];
   if ( nullptr == _state ) {
     ESP_LOGE( TAG, "No sensors created. Low mem?" );
     return false;
   }
-  _tempState = new sensorState_t[maxsensors];
+  _tempState = new sensorState_t[num];
   if ( nullptr == _tempState ) {
     ESP_LOGE( TAG, "No sensors created. Low mem?" );
     return false;
   }
-  _maxSensors = maxsensors;
+  _maxSensors = num;
 
-  ESP_LOGE( TAG, "created %i sensors", maxsensors );
+  ESP_LOGE( TAG, "created %i sensors", num );
   sensorPreferences.begin( "FFatSensor", false );
   setStackSize(3500);
   setCore(1);
@@ -329,7 +329,7 @@ uint8_t FFatSensor::_scanSensors() {
   while ( _wire->search( currentAddr ) && ( num < _maxSensors ) ) {
     _tempState[num].error = true;
     _tempState[num].tempCelsius = NAN;
-    memcpy( _tempState[num].addr, currentAddr, sizeof( sensorState_t::addr ) );
+    memcpy( _tempState[num].addr, currentAddr, sizeof( sensorAddr_t ) );
     num++;
   }
   vTaskPrioritySet( NULL, 0);
