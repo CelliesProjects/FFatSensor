@@ -233,18 +233,21 @@ void FFatSensor::run( void * data ) {
       byte type_s;
       // the first ROM byte indicates which chip
       switch ( _tempState[num].addr[0] ) {
-        case 0x10:
+        case 0x10: {
           ESP_LOGD( TAG, "Dallas sensor type : DS18S20" );  /* or old DS1820 */
           type_s = 1;
           break;
-        case 0x28:
+        }
+        case 0x28: {
           ESP_LOGD( TAG, "Dallas sensor type : DS18B20");
           type_s = 0;
           break;
-        case 0x22:
+        }
+        case 0x22: {
           ESP_LOGD( TAG, "Dallas sensor type : DS1822");
           type_s = 0;
           break;
+        }
         default:
           ESP_LOGE( TAG, "OneWire device is not a DS18x20 family device.");
       }
