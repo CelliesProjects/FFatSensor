@@ -15,7 +15,7 @@ void setup() {
 
   if ( !FFat.begin() ) Serial.println( "Could not mount FFat.");
 
-  sensor.startSensors( 5 );                                      // 3. Start the DS18B20 sensors on GPIO 5.
+  sensor.startSensors( 10, 5 );                                      // 3. Start max 10 DS18B20 sensors on GPIO 5.
 
   Serial.println("Waiting for first sensor");  // 4. You can just wait until a particular sensor gives a valid reading.
   while ( sensor.sensorError( 0 ) ) {
