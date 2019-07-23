@@ -76,24 +76,25 @@ bool FFatSensor::startSensors( const uint8_t num, const uint8_t pin ) {
   }
   _wire = new OneWire( pin );
   if ( nullptr == _wire ) {
-    ESP_LOGE( TAG, "OneWire not created. (low mem?) Exiting." );
+    ESP_LOGE( TAG, "Could not allocate memory. OneWire not created." );
     return false;
   }
   _state = new sensorState_t[num];
   if ( nullptr == _state ) {
-    ESP_LOGE( TAG, "No sensors created. Low mem?" );
-    //delete OneWire
+    ESP_LOGE( TAG, "Could not allocate primary buffer. No sensor objects created." );
+    delete _wire;
     return false;
   }
   _tempState = new sensorState_t[num];
   if ( nullptr == _tempState ) {
-    ESP_LOGE( TAG, "No sensors created. Low mem?" );
-    //delete OneWire and _state
+    ESP_LOGE( TAG, "Could not allocate secondary buffer. No sensor objects created." );
+    delete[] _state;
+    delete _wire;
     return false;
   }
   _maxSensors = num;
 
-  ESP_LOGD( TAG, "created %i sensor objects", num );
+  ESP_LOGD( TAG, "Created %i sensor objects.", num );
   sensorPreferences.begin( "FFatSensor", false );
   setStackSize(3500);
   setCore(1);
@@ -218,17 +219,17 @@ void FFatSensor::run( void * data ) {
   while (1) {
     ESP_LOGV( TAG, "Stack left: %i", uxTaskGetStackHighWaterMark( NULL ) );
     if ( _rescan ) loopCounter = _scanSensors();
-   _wire->reset();
-   _wire->write( 0xCC, 0); /* Skip ROM - All sensors */
-   _wire->write( 0x44, 0); /* start conversion, with parasite power off at the end */
+    _wire->reset();
+    _wire->write( 0xCC, 0); /* Skip ROM - All sensors */
+    _wire->write( 0x44, 0); /* start conversion, with parasite power off at the end */
     vTaskDelay( 750 ); //wait for conversion ready
     uint8_t num = 0;
     while ( num < loopCounter ) {
       byte data[12];
-     _tempState[num].error = true; /* we start with an error, which will be cleared if the CRC checks out. */
-     _wire->reset();
-     _wire->select( _tempState[num].addr );
-     _wire->write( 0xBE );         /* Read Scratchpad */
+      _tempState[num].error = true; /* we start with an error, which will be cleared if the CRC checks out. */
+      _wire->reset();
+      _wire->select( _tempState[num].addr );
+      _wire->write( 0xBE );         /* Read Scratchpad */
       for ( byte i = 0; i < 9; i++ ) data[i] = _wire->read(); // we need 9 bytes
       ESP_LOGD( TAG, "Sensor %i data=%02x%02x%02x%02x%02x%02x%02x%02x%02x", num,
                      data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7], data[8] );
@@ -296,23 +297,20 @@ void FFatSensor::run( void * data ) {
     _count = loopCounter;
 
     if ( tempLogTicker ) {
-      time_t                  now;
-      struct tm          timeinfo;
-      char           fileName[17];
-
-      time( &now );
-      localtime_r( &now, &timeinfo );
-      strftime( fileName , sizeof( fileName ), "/%F.log", &timeinfo );
-
       _deleteOldLogfiles( FFat, "/", 0 );
 
-      char content[60];
-      uint8_t charCount = 0;
+      struct tm timeinfo;
+      getLocalTime( &timeinfo );
+      char fileName[17];
+      strftime( fileName , sizeof( fileName ), "/%F.log", &timeinfo );
+
+      char content[35];
+      uint8_t used = 0;
       if ( loopCounter ) {
-        charCount += snprintf( content, sizeof( content ), "%i,", now );
-        charCount += snprintf( content + charCount, sizeof( content ) - charCount, ",%3.2f", _tempState[0].tempCelsius  );
-        for  ( uint8_t sensorNumber = 1; sensorNumber < loopCounter; sensorNumber++ )
-          charCount += snprintf( content + charCount, sizeof( content ) - charCount, ",%3.2f", _tempState[sensorNumber].tempCelsius  );
+        timeStampBuffer_t tsb;
+        used += snprintf( content, sizeof( content ), "%s,%3.2f",timeStamp( UNIX_TIME, tsb ), _tempState[0].tempCelsius );
+        for ( uint8_t num = 1; num < loopCounter; num++ )
+          used += snprintf( content + used, sizeof( content ) - used, ",%3.2f", _tempState[num].tempCelsius  );
         if ( !_writelnFile( fileName, content ) )
           ESP_LOGE( TAG, "%s", "Failed to write to log file." );
       }
@@ -326,18 +324,14 @@ void FFatSensor::run( void * data ) {
 }
 
 uint8_t FFatSensor::_scanSensors() {
-  uint8_t num = 0;
-  sensorAddr_t currentAddr;
- _wire->reset_search();
- _wire->target_search(0x28);
-  vTaskPrioritySet( NULL, 10 );
-  while ( _wire->search( currentAddr ) && ( num < _maxSensors ) ) {
-    _tempState[num].error = true;
-    _tempState[num].tempCelsius = NAN;
-    memcpy( _tempState[num].addr, currentAddr, sizeof( sensorAddr_t ) );
+  _wire->reset_search();
+  _wire->target_search(0x28);
+  uint8_t num(0);
+  sensorAddr_t addr;
+  while ( _wire->search( addr ) && ( num < _maxSensors ) ) {
+    memcpy( _tempState[num].addr, addr, sizeof( sensorAddr_t ) );
     num++;
   }
-  vTaskPrioritySet( NULL, 0);
   _rescan = false;
   return num;
 }
