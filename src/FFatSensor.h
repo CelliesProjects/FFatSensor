@@ -29,7 +29,8 @@ public:
   };
   FFatSensor();
   virtual ~FFatSensor();
-  bool                  startSensors( const uint8_t pin, uint8_t num );
+  /*sensor routines */
+  bool                  startSensors( const uint8_t num, const uint8_t pin );
   void                  rescanSensors();
   uint8_t               sensorCount();
   float                 sensorTemp( const uint8_t num );
@@ -38,13 +39,14 @@ public:
   const char *          getSensorName( const sensorId_t &id, sensorName_t &name );
   const char *          getSensorId( const uint8_t num, sensorId_t &id );
   bool                  setSensorName( const sensorId_t &id, const char * name );
+  /* logging routines */
   bool                  isTempLogging();
   bool                  isErrorLogging();
   bool                  startTempLogging( const uint32_t seconds = 180 );
   bool                  stopTempLogging();
   bool                  startErrorLogging();
   bool                  stopErrorLogging();
-  bool                  appendToFile( const char * path, timeStamp_t ts, const char * message );
+  bool                  appendToFile( const char * path, const timeStamp_t type, const char * message );
   const char *          timeStamp( const timeStamp_t type , timeStampBuffer_t &buf );
 
 private:

@@ -69,7 +69,7 @@ static bool _saveTempLogStateToNVS( const bool state ) {
 FFatSensor::FFatSensor() {}
 FFatSensor::~FFatSensor() {}
 
-bool FFatSensor::startSensors( const uint8_t pin, uint8_t num ) {
+bool FFatSensor::startSensors( const uint8_t num, const uint8_t pin ) {
   if ( nullptr != _wire ) {
     ESP_LOGE( TAG, "Sensors already running. Exiting." );
     return false;
@@ -82,16 +82,18 @@ bool FFatSensor::startSensors( const uint8_t pin, uint8_t num ) {
   _state = new sensorState_t[num];
   if ( nullptr == _state ) {
     ESP_LOGE( TAG, "No sensors created. Low mem?" );
+    //delete OneWire
     return false;
   }
   _tempState = new sensorState_t[num];
   if ( nullptr == _tempState ) {
     ESP_LOGE( TAG, "No sensors created. Low mem?" );
+    //delete OneWire and _state
     return false;
   }
   _maxSensors = num;
 
-  ESP_LOGE( TAG, "created %i sensors", num );
+  ESP_LOGD( TAG, "created %i sensor objects", num );
   sensorPreferences.begin( "FFatSensor", false );
   setStackSize(3500);
   setCore(1);
@@ -182,10 +184,10 @@ bool FFatSensor::stopErrorLogging() {
   return true;
 }
 
-bool FFatSensor::appendToFile( const char * path, timeStamp_t ts, const char * message ) {
+bool FFatSensor::appendToFile( const char * path, const timeStamp_t type, const char * message ) {
   char buffer[100];
   timeStampBuffer_t tsb;
-  snprintf( buffer, sizeof( buffer ), "%s%s", timeStamp( ts, tsb ), message );
+  snprintf( buffer, sizeof( buffer ), "%s%s", timeStamp( type, tsb ), message );
   return _writelnFile( path, buffer );
 }
 
