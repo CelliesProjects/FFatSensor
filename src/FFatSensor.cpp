@@ -195,17 +195,17 @@ const char * FFatSensor::timeStamp( const timeStamp_t type , timeStampBuffer_t &
   switch ( type ) {
    case UNIX_TIME: {
       time_t t = time(NULL);
-      snprintf( buf , sizeof( timeStampBuffer_t ), "%i,", t );
+      snprintf( buf , sizeof( timeStampBuffer_t ), "%i", t );
       break;
     }
     case HUMAN_TIME: {
       struct tm timeinfo = {0};
       getLocalTime( &timeinfo, 0 );
-      strftime( buf , sizeof( timeStampBuffer_t ), "%x %X ", &timeinfo );
+      strftime( buf , sizeof( timeStampBuffer_t ), "%x %X", &timeinfo );
       break;
     }
     case MILLIS_TIME: {
-      snprintf( buf , sizeof( timeStampBuffer_t ), "%i,", millis() );
+      snprintf( buf , sizeof( timeStampBuffer_t ), "%i", millis() );
       break;
     }
     default: break;
@@ -310,7 +310,7 @@ void FFatSensor::run( void * data ) {
       uint8_t charCount = 0;
       if ( loopCounter ) {
         charCount += snprintf( content, sizeof( content ), "%i,", now );
-        charCount += snprintf( content + charCount, sizeof( content ) - charCount, "%3.2f", _tempState[0].tempCelsius  );
+        charCount += snprintf( content + charCount, sizeof( content ) - charCount, ",%3.2f", _tempState[0].tempCelsius  );
         for  ( uint8_t sensorNumber = 1; sensorNumber < loopCounter; sensorNumber++ )
           charCount += snprintf( content + charCount, sizeof( content ) - charCount, ",%3.2f", _tempState[sensorNumber].tempCelsius  );
         if ( !_writelnFile( fileName, content ) )
