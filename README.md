@@ -2,10 +2,25 @@
 ESP32 Arduino IDE library for managing OneWire DS18B20 temperature sensors.
 
 #### An easy interface for OneWire DS18B20 sensors.
+- `logger.startSensors( 3, 5 )` Max 3 sensors on GPIO 5 are scanned and running.
+- `logger.sensorCount()` Gives the number of sensors connected.
+- `logger.getSensorTemp( 0 )` 
+Gives a temperature reading from the first sensor.
 
-- `logger.startSensors( 3, 5 )` and 3 sensors on GPIO 5 are scanned and running.
-- `logger.sensorCount()` gives the number of sensors connected.
-- `logger.getSensorTemp( 0 )` gives a temperature reading from the first sensor.
+#### With easy temperature logging to FFat.
+- `sensor.startTempLogging( 180 )` Starts temperature logging to FFat every 180 seconds.
+<br>This setting is saved in NVS. If after a reboot `startSensors()` is called logging will resume. 
+- `sensor.stopTempLogging()` Stops temperature logging to FFat. 
+- `sensor.isTempLogging()` Gives the current temperature logging state.
+
+Temperature logging writes to a csv file formatted as `1971-01-01.log`. (if no system time is set before)
+Logging is based on UTC.
+
+#### Wait! There's more!
+- `sensor.startErrorLogging()` starts sensor error logging to FFat.
+- `sensor.stopErrorLogging()` stops sensor error logging to FFat.
+
+Error logging writes to `sensor_error.txt`.
 
 Runs fine without FFat, but then you have no logging ofcourse.
 
@@ -23,13 +38,13 @@ Download and install `FFatSensor`, `OneWire` and `Task` in the esp32 libraries f
 #include <OneWire.h>
 #include <Task.h>
 #include <FFat.h>
-#include <FFatSensor.h>  // 0. Include the libraries.
+#include <FFatSensor.h>  // 1. Include the libraries.
 
 #define FORMAT_FS false /*WILL FORMAT FFAT! set to true to format FFat.*/
 
 /* Should be compiled with a FFat partition in Tools>Partition scheme */
 
-FFatSensor sensor;  // 1. Make an instance.
+FFatSensor sensor;  // 2. Make an object.
 
 void setup() {
   Serial.begin( 115200 );
@@ -38,21 +53,19 @@ void setup() {
 
   Serial.println("FFatSensor example sketch. Starting sensors.");
 
-  // Logging to FFat
-
   if ( FORMAT_FS ) FFat.format();
   if ( !FFat.begin() ) Serial.println( "Could not mount FFat.");
 
   sensor.startSensors( 10, 5 );  // 3. Start max 10 DS18B20 sensors on GPIO 5.
 
-  Serial.print("Waiting for sensors");  // 4. You can just wait until a particular sensor gives a valid reading.
+  Serial.print("Waiting for sensors");  // 4. Wait for sensors to become available.
   while ( !sensor.sensorCount() ) {
     Serial.print(".");
     delay( 100 );
   }
   Serial.println();
 
-  Serial.printf( "%i sensors found.\n", sensor.sensorCount());  // 5. Or check how many sensors are found.
+  Serial.printf( "%i sensors found.\n", sensor.sensorCount());  // 5. Check how many sensors are found.
 
   Serial.print( "First sensor value: ");  // 6. Get a sensor reading.
   Serial.println( sensor.sensorTemp( 0 ) );
