@@ -43,8 +43,10 @@ static void _deleteOldLogfiles( fs::FS &fs, const char * dirname, uint8_t levels
         _deleteOldLogfiles( fs, file.name(), levels - 1 );
     }
     else {
-      if ( strstr( file.name(), ".log" ) )
+      if ( strstr( file.name(), ".log" ) ) {
+        ESP_LOGD( TAG, "Pushing %s on stack.", file.name() );
         logFiles.push_back( file.name() );
+      }
     }
     file = root.openNextFile();
   }
@@ -55,7 +57,7 @@ static void _deleteOldLogfiles( fs::FS &fs, const char * dirname, uint8_t levels
     std::list<String>::iterator thisFile;
     thisFile = logFiles.begin();
     String filename = *thisFile;
-    ESP_LOGI( TAG, "Deleting oldest log file %s", filename.c_str() );
+    ESP_LOGD( TAG, "Deleting oldest log file %s", filename.c_str() );
     FFat.remove( filename.c_str() );
     logFiles.erase( thisFile );
   }
