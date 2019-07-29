@@ -6,8 +6,13 @@
 
 #include "FFatSensor.h"
 
+#define DEFAULT_INTERVAL_SECONDS           180
+
 static const char * SENSORERROR_FILENAME = "/sensor_error.txt";
 static const char * UNKNOWN_SENSOR       = "unknown sensor";
+
+static const char * NVSKEY_INTERVAL      = "interval";
+static const char * NVSKEY_LOGGING       = "logging";
 
 static OneWire* _wire = nullptr;
 static Preferences sensorPreferences;
@@ -24,6 +29,7 @@ static void IRAM_ATTR _onTimer() {
   tempLogTicker = true;
   portEXIT_CRITICAL_ISR(&timerMux);
 }
+
 
 static void _deleteOldLogfiles( fs::FS &fs, const char * dirname, uint8_t levels ) {
   File root = FFat.open( dirname );
@@ -63,8 +69,8 @@ static void _deleteOldLogfiles( fs::FS &fs, const char * dirname, uint8_t levels
   }
 }
 
-static bool _saveTempLogStateToNVS( const bool state ) {
-  return sensorPreferences.putBool( "logging", state );
+static inline bool _saveTempLogStateToNVS( const bool state ) {
+  return sensorPreferences.putBool( NVSKEY_LOGGING, state );
 };
 
 /* FFatSensor member functions */
@@ -102,7 +108,7 @@ bool FFatSensor::startSensors( const uint8_t num, const uint8_t pin ) {
   setCore(1);
   setPriority(0);
   start();
-  if ( sensorPreferences.getBool( "logging", false ) )
+  if ( sensorPreferences.getBool( NVSKEY_LOGGING, false ) )
     startTempLogging();
   return true;
 }
@@ -156,8 +162,13 @@ bool FFatSensor::isErrorLogging() {
   return _errorlogging;
 }
 
+bool FFatSensor::startTempLogging() {
+  return startTempLogging( sensorPreferences.getULong( NVSKEY_INTERVAL, DEFAULT_INTERVAL_SECONDS ) );
+};
+
 bool FFatSensor::startTempLogging( const uint32_t seconds ) {
   if ( NULL != tempLogTimer ) return false;
+  sensorPreferences.putULong( NVSKEY_INTERVAL, seconds );
   tempLogTimer = timerBegin(0, 80, true);
   timerAttachInterrupt(tempLogTimer, &_onTimer, true);
   timerAlarmWrite(tempLogTimer, seconds * 1000000, true);

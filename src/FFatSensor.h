@@ -43,7 +43,8 @@ public:
   /* logging routines */
   bool                  isTempLogging();
   bool                  isErrorLogging();
-  bool                  startTempLogging( const uint32_t seconds = 180 );
+  bool                  startTempLogging();
+  bool                  startTempLogging( const uint32_t seconds );
   bool                  stopTempLogging();
   bool                  startErrorLogging();
   bool                  stopErrorLogging();
