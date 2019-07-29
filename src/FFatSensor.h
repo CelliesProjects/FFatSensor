@@ -47,7 +47,7 @@ public:
   bool                  startErrorLogging();
   bool                  stopErrorLogging();
   bool                  appendToFile( const char * path, const timeStamp_t type, const char * message );
-  const char *          timeStamp( const timeStamp_t type , timeStampBuffer_t &buf );
+  const char *          timeStamp( const timeStamp_t type , timeStampBuffer_t &tsb );
 
 private:
   uint8_t               _maxSensors = 0;

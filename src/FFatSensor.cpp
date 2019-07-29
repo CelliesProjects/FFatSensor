@@ -194,26 +194,27 @@ bool FFatSensor::appendToFile( const char * path, const timeStamp_t type, const 
   return _writelnFile( path, buffer );
 }
 
-const char * FFatSensor::timeStamp( const timeStamp_t type , timeStampBuffer_t &buf ) {
+const char * FFatSensor::timeStamp( const timeStamp_t type , timeStampBuffer_t &tsb ) {
   switch ( type ) {
    case UNIX_TIME: {
       time_t t = time(NULL);
-      snprintf( buf , sizeof( timeStampBuffer_t ), "%i", t );
+      snprintf( tsb , sizeof( timeStampBuffer_t ), "%i", t );
       break;
     }
     case HUMAN_TIME: {
-      struct tm timeinfo = {0};
-      getLocalTime( &timeinfo, 0 );
-      strftime( buf , sizeof( timeStampBuffer_t ), "%x-%X", &timeinfo );
+      time_t now = time(NULL);
+      struct tm timeinfo;
+      localtime_r( &now, &timeinfo );
+      strftime( tsb , sizeof( timeStampBuffer_t ), "%x-%X", &timeinfo );
       break;
     }
     case MILLIS_TIME: {
-      snprintf( buf , sizeof( timeStampBuffer_t ), "%i", millis() );
+      snprintf( tsb , sizeof( timeStampBuffer_t ), "%i", millis() );
       break;
     }
     default: break;
   }
-  return buf;
+  return tsb;
 }
 
 void FFatSensor::run( void * data ) {
@@ -301,8 +302,9 @@ void FFatSensor::run( void * data ) {
     if ( tempLogTicker ) {
       _deleteOldLogfiles( FFat, "/", 0 );
 
+      time_t now = time(NULL);
       struct tm timeinfo;
-      getLocalTime( &timeinfo );
+      localtime_r( &now, &timeinfo );
       char fileName[17];
       strftime( fileName , sizeof( fileName ), "/%F.log", &timeinfo );
 
@@ -310,7 +312,7 @@ void FFatSensor::run( void * data ) {
       uint8_t used = 0;
       if ( loopCounter ) {
         timeStampBuffer_t tsb;
-        used += snprintf( content, sizeof( content ), "%s,%3.2f",timeStamp( UNIX_TIME, tsb ), _tempState[0].tempCelsius );
+        used += snprintf( content, sizeof( content ), "%s,%3.2f", timeStamp( UNIX_TIME, tsb ), _tempState[0].tempCelsius );
         for ( uint8_t num = 1; num < loopCounter; num++ )
           used += snprintf( content + used, sizeof( content ) - used, ",%3.2f", _tempState[num].tempCelsius  );
         if ( !_writelnFile( fileName, content ) )
