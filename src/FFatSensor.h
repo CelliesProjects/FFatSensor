@@ -22,7 +22,8 @@ typedef char timeStampBuffer_t[20];
 
 class FFatSensor: public Task {
 public:
-  struct sensorState_t {                  /* struct to keep track of Dallas DS18B20 sensors */
+  /* struct to keep track of Dallas DS18B20 sensors */
+  struct sensorState_t {
     sensorAddr_t     addr{0};
     float            tempCelsius = NAN;
     bool             error = true;
