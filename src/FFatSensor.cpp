@@ -30,7 +30,6 @@ static void IRAM_ATTR _onTimer() {
   portEXIT_CRITICAL_ISR(&timerMux);
 }
 
-
 static void _deleteOldLogfiles( fs::FS &fs, const char * dirname, uint8_t levels ) {
   File root = FFat.open( dirname );
   if ( !root ) {
