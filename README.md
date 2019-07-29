@@ -2,10 +2,9 @@
 ESP32 Arduino IDE library for managing OneWire DS18B20 temperature sensors.
 
 #### An easy interface for OneWire DS18B20 sensors.
-- `logger.startSensors( 3, 5 )` Max 3 sensors on GPIO 5 are scanned and running.
-- `logger.sensorCount()` Gives the number of sensors connected.
-- `logger.getSensorTemp( 0 )` 
-Gives a temperature reading from the first sensor.
+- `logger.startSensors( 3, 5 )` Starts max 3 sensors on GPIO 5 that are scanned and updated every 750ms.
+- `logger.sensorCount()` Gives the number of sensors actually connected.
+- `logger.getSensorTemp( 0 )` Gives a temperature reading from the first sensor.
 
 #### With easy temperature logging to FFat.
 - `sensor.startTempLogging( 180 )` Starts temperature logging to FFat every 180 seconds.
@@ -13,9 +12,16 @@ Gives a temperature reading from the first sensor.
 - `sensor.stopTempLogging()` Stops temperature logging to FFat. 
 - `sensor.isTempLogging()` Gives the current temperature logging state.
 
-Temperature logging writes to a csv file formatted as `1970-01-01.log`. (if no system time is set before)
-Logging is based on UTC.
-
+Temperature logging writes to a csv file formatted as `1970-01-01.log` if no system time is set before.
+<br>Logging is based on UTC. A typical log entry looks like:
+````bash
+1564356928,26.69,23.00,18.44
+````
+- Where `1564356928` is `Mon Jul 29 2019 01:35:28 GMT+0200 (Central European Summer Time)`
+<br>This is the value in my browser at least - press F12 in your browser and then choose the console tab)
+<br>The exact time you see depends on your browsers TZ. (timezone)
+<br>(which you can check with `new Date( 1564356928 * 1000 )`
+- `26.69,23.00,18.44` are the current measured sensor temperatures.
 #### Wait! There's more!
 - `sensor.startErrorLogging()` starts sensor error logging to FFat.
 - `sensor.stopErrorLogging()` stops sensor error logging to FFat.
