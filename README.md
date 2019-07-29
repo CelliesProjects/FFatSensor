@@ -13,7 +13,7 @@ Gives a temperature reading from the first sensor.
 - `sensor.stopTempLogging()` Stops temperature logging to FFat. 
 - `sensor.isTempLogging()` Gives the current temperature logging state.
 
-Temperature logging writes to a csv file formatted as `1971-01-01.log`. (if no system time is set before)
+Temperature logging writes to a csv file formatted as `1970-01-01.log`. (if no system time is set before)
 Logging is based on UTC.
 
 #### Wait! There's more!
