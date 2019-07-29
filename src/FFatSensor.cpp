@@ -112,20 +112,8 @@ bool FFatSensor::startSensors( const uint8_t num, const uint8_t pin ) {
   return true;
 }
 
-uint8_t FFatSensor::sensorCount() {
-  return _count;
-}
-
 void FFatSensor::rescanSensors() {
   _rescan = true;
-}
-
-float FFatSensor::sensorTemp( const uint8_t num ) {
-  return _state[num].tempCelsius;
-}
-
-bool FFatSensor::sensorError( const uint8_t num ) {
-  return _state[num].error;
 }
 
 const char * FFatSensor::getSensorName( const uint8_t num, sensorName_t &name ) {
@@ -157,10 +145,6 @@ bool FFatSensor::isTempLogging() {
   return ( NULL != tempLogTimer );
 }
 
-bool FFatSensor::isErrorLogging() {
-  return _errorlogging;
-}
-
 bool FFatSensor::startTempLogging() {
   return startTempLogging( sensorPreferences.getULong( NVSKEY_INTERVAL, DEFAULT_INTERVAL_SECONDS ) );
 };
@@ -184,16 +168,6 @@ bool FFatSensor::stopTempLogging() {
   timerEnd(tempLogTimer);
   tempLogTimer = NULL;
   _saveTempLogStateToNVS( TEMPLOG_OFF );
-  return true;
-}
-
-bool FFatSensor::startErrorLogging() {
-  _errorlogging = true;
-  return true;
-}
-
-bool FFatSensor::stopErrorLogging() {
-  _errorlogging = false;
   return true;
 }
 

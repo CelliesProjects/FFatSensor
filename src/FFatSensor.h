@@ -33,21 +33,21 @@ public:
   /*sensor routines */
   bool                  startSensors( const uint8_t num, const uint8_t pin );
   void                  rescanSensors();
-  uint8_t               sensorCount();
-  float                 sensorTemp( const uint8_t num );
-  bool                  sensorError( const uint8_t num );
+  uint8_t               sensorCount() { return _count; };
+  float                 sensorTemp( const uint8_t num ) { return _state[num].tempCelsius; };
+  bool                  sensorError( const uint8_t num ) { return _state[num].error; };
   const char *          getSensorName( const uint8_t num, sensorName_t &name );
   const char *          getSensorName( const sensorId_t &id, sensorName_t &name );
   const char *          getSensorId( const uint8_t num, sensorId_t &id );
   bool                  setSensorName( const sensorId_t &id, const char * name );
   /* logging routines */
   bool                  isTempLogging();
-  bool                  isErrorLogging();
+  bool                  isErrorLogging() { return _errorlogging; };
   bool                  startTempLogging();
   bool                  startTempLogging( const uint32_t seconds );
   bool                  stopTempLogging();
-  bool                  startErrorLogging();
-  bool                  stopErrorLogging();
+  void                  startErrorLogging() { _errorlogging = true; };
+  void                  stopErrorLogging() { _errorlogging = false; };
   bool                  appendToFile( const char * path, const timeStamp_t type, const char * message );
   const char *          timeStamp( const timeStamp_t type , timeStampBuffer_t &tsb );
 
