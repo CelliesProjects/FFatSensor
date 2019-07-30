@@ -11,6 +11,7 @@
 static const char * SENSORERROR_FILENAME = "/sensor_error.txt";
 static const char * UNKNOWN_SENSOR       = "unknown sensor";
 
+static const char * NVSKEY_NAMESPACE     = "FFatSensor";
 static const char * NVSKEY_INTERVAL      = "interval";
 static const char * NVSKEY_LOGGING       = "logging";
 
@@ -102,7 +103,7 @@ bool FFatSensor::startSensors( const uint8_t num, const uint8_t pin ) {
   _maxSensors = num;
 
   ESP_LOGD( TAG, "Created %i sensor objects.", num );
-  sensorPreferences.begin( "FFatSensor", false );
+  sensorPreferences.begin( NVSKEY_NAMESPACE, false );
   setStackSize(3500);
   setCore(1);
   setPriority(0);
@@ -171,6 +172,10 @@ bool FFatSensor::stopTempLogging() {
   return true;
 }
 
+uint32_t FFatSensor::getLoggingInterval() {
+  return sensorPreferences.getULong( NVSKEY_INTERVAL, DEFAULT_INTERVAL_SECONDS );
+}
+
 bool FFatSensor::appendToFile( const char * path, const timeStamp_t type, const char * message ) {
   char buffer[100];
   timeStampBuffer_t tsb;
@@ -181,8 +186,7 @@ bool FFatSensor::appendToFile( const char * path, const timeStamp_t type, const 
 const char * FFatSensor::timeStamp( const timeStamp_t type , timeStampBuffer_t &tsb ) {
   switch ( type ) {
    case UNIX_TIME: {
-      time_t t = time(NULL);
-      snprintf( tsb , sizeof( timeStampBuffer_t ), "%i", t );
+      snprintf( tsb , sizeof( timeStampBuffer_t ), "%i", time(NULL) );
       break;
     }
     case HUMAN_TIME: {

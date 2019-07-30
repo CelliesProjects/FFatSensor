@@ -46,6 +46,7 @@ public:
   bool                  startTempLogging();
   bool                  startTempLogging( const uint32_t seconds );
   bool                  stopTempLogging();
+  uint32_t              getLoggingInterval();
   void                  startErrorLogging() { _errorlogging = true; };
   void                  stopErrorLogging() { _errorlogging = false; };
   bool                  appendToFile( const char * path, const timeStamp_t type, const char * message );
