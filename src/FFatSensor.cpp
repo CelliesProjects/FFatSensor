@@ -6,8 +6,14 @@
 
 #include "FFatSensor.h"
 
+#define DEFAULT_INTERVAL_SECONDS           180
+
 static const char * SENSORERROR_FILENAME = "/sensor_error.txt";
 static const char * UNKNOWN_SENSOR       = "unknown sensor";
+
+static const char * NVSKEY_NAMESPACE     = "FFatSensor";
+static const char * NVSKEY_INTERVAL      = "interval";
+static const char * NVSKEY_LOGGING       = "logging";
 
 static OneWire* _wire = nullptr;
 static Preferences sensorPreferences;
@@ -17,8 +23,6 @@ static hw_timer_t *   tempLogTimer = NULL;
 static portMUX_TYPE       timerMux = portMUX_INITIALIZER_UNLOCKED;
 
 static bool _rescan = false;
-
-static FFatSensor::sensorState_t _tempState[MAX_NUMBER_OF_SENSORS];
 
 /* static functions */
 static void IRAM_ATTR _onTimer() {
@@ -45,8 +49,10 @@ static void _deleteOldLogfiles( fs::FS &fs, const char * dirname, uint8_t levels
         _deleteOldLogfiles( fs, file.name(), levels - 1 );
     }
     else {
-      if ( strstr( file.name(), ".log" ) )
+      if ( strstr( file.name(), ".log" ) ) {
+        ESP_LOGD( TAG, "Pushing %s on stack.", file.name() );
         logFiles.push_back( file.name() );
+      }
     }
     file = root.openNextFile();
   }
@@ -57,54 +63,58 @@ static void _deleteOldLogfiles( fs::FS &fs, const char * dirname, uint8_t levels
     std::list<String>::iterator thisFile;
     thisFile = logFiles.begin();
     String filename = *thisFile;
-    ESP_LOGI( TAG, "Deleting oldest log file %s", filename.c_str() );
+    ESP_LOGD( TAG, "Deleting oldest log file %s", filename.c_str() );
     FFat.remove( filename.c_str() );
     logFiles.erase( thisFile );
   }
 }
 
-static bool _saveTempLogStateToNVS( const bool state ) {
-  return sensorPreferences.putBool( "logging", state );
+static inline bool _saveTempLogStateToNVS( const bool state ) {
+  return sensorPreferences.putBool( NVSKEY_LOGGING, state );
 };
 
 /* FFatSensor member functions */
 FFatSensor::FFatSensor() {}
 FFatSensor::~FFatSensor() {}
 
-bool FFatSensor::startSensors(uint8_t pin) {
+bool FFatSensor::startSensors( const uint8_t num, const uint8_t pin ) {
   if ( nullptr != _wire ) {
     ESP_LOGE( TAG, "Sensors already running. Exiting." );
     return false;
   }
   _wire = new OneWire( pin );
   if ( nullptr == _wire ) {
-    ESP_LOGE( TAG, "OneWire not created. (low mem?) Exiting." );
+    ESP_LOGE( TAG, "Could not allocate memory. OneWire not created." );
     return false;
   }
-  sensorPreferences.begin( "FFatSensor", false );
+  _state = new sensorState_t[num];
+  if ( nullptr == _state ) {
+    ESP_LOGE( TAG, "Could not allocate primary buffer. No sensor objects created." );
+    delete _wire;
+    return false;
+  }
+  _tempState = new sensorState_t[num];
+  if ( nullptr == _tempState ) {
+    ESP_LOGE( TAG, "Could not allocate secondary buffer. No sensor objects created." );
+    delete[] _state;
+    delete _wire;
+    return false;
+  }
+  _maxSensors = num;
+
+  ESP_LOGD( TAG, "Created %i sensor objects.", num );
+  sensorPreferences.begin( NVSKEY_NAMESPACE, false );
   setStackSize(3500);
   setCore(1);
   setPriority(0);
   start();
-  if ( sensorPreferences.getBool( "logging", false ) )
+  if ( sensorPreferences.getBool( NVSKEY_LOGGING, false ) )
     startTempLogging();
   return true;
 }
 
-uint8_t FFatSensor::sensorCount() {
-  return _count;
-}
-
 void FFatSensor::rescanSensors() {
   _rescan = true;
-}
-
-float FFatSensor::sensorTemp( const uint8_t num ) {
-  return _state[num].tempCelsius;
-}
-
-bool FFatSensor::sensorError( const uint8_t num ) {
-  return _state[num].error;
 }
 
 const char * FFatSensor::getSensorName( const uint8_t num, sensorName_t &name ) {
@@ -136,12 +146,13 @@ bool FFatSensor::isTempLogging() {
   return ( NULL != tempLogTimer );
 }
 
-bool FFatSensor::isErrorLogging() {
-  return _errorlogging;
-}
+bool FFatSensor::startTempLogging() {
+  return startTempLogging( sensorPreferences.getULong( NVSKEY_INTERVAL, DEFAULT_INTERVAL_SECONDS ) );
+};
 
 bool FFatSensor::startTempLogging( const uint32_t seconds ) {
   if ( NULL != tempLogTimer ) return false;
+  sensorPreferences.putULong( NVSKEY_INTERVAL, seconds );
   tempLogTimer = timerBegin(0, 80, true);
   timerAttachInterrupt(tempLogTimer, &_onTimer, true);
   timerAlarmWrite(tempLogTimer, seconds * 1000000, true);
@@ -161,43 +172,37 @@ bool FFatSensor::stopTempLogging() {
   return true;
 }
 
-bool FFatSensor::startErrorLogging() {
-  _errorlogging = true;
-  return true;
+uint32_t FFatSensor::getLoggingInterval() {
+  return sensorPreferences.getULong( NVSKEY_INTERVAL, DEFAULT_INTERVAL_SECONDS );
 }
 
-bool FFatSensor::stopErrorLogging() {
-  _errorlogging = false;
-  return true;
-}
-
-bool FFatSensor::appendToFile( const char * path, timeStamp_t ts, const char * message ) {
+bool FFatSensor::appendToFile( const char * path, const timeStamp_t type, const char * message ) {
   char buffer[100];
   timeStampBuffer_t tsb;
-  snprintf( buffer, sizeof( buffer ), "%s%s", timeStamp( ts, tsb ), message );
+  snprintf( buffer, sizeof( buffer ), "%s%s", timeStamp( type, tsb ), message );
   return _writelnFile( path, buffer );
 }
 
-const char * FFatSensor::timeStamp( const timeStamp_t type , timeStampBuffer_t &buf ) {
+const char * FFatSensor::timeStamp( const timeStamp_t type , timeStampBuffer_t &tsb ) {
   switch ( type ) {
    case UNIX_TIME: {
-      time_t t = time(NULL);
-      snprintf( buf , sizeof( timeStampBuffer_t ), "%i,", t );
+      snprintf( tsb , sizeof( timeStampBuffer_t ), "%i", time(NULL) );
       break;
     }
     case HUMAN_TIME: {
-      struct tm timeinfo = {0};
-      getLocalTime( &timeinfo, 0 );
-      strftime( buf , sizeof( timeStampBuffer_t ), "%x %X ", &timeinfo );
+      time_t now = time(NULL);
+      struct tm timeinfo;
+      localtime_r( &now, &timeinfo );
+      strftime( tsb , sizeof( timeStampBuffer_t ), "%x-%X", &timeinfo );
       break;
     }
     case MILLIS_TIME: {
-      snprintf( buf , sizeof( timeStampBuffer_t ), "%i,", millis() );
+      snprintf( tsb , sizeof( timeStampBuffer_t ), "%i", millis() );
       break;
     }
     default: break;
   }
-  return buf;
+  return tsb;
 }
 
 void FFatSensor::run( void * data ) {
@@ -205,35 +210,38 @@ void FFatSensor::run( void * data ) {
   while (1) {
     ESP_LOGV( TAG, "Stack left: %i", uxTaskGetStackHighWaterMark( NULL ) );
     if ( _rescan ) loopCounter = _scanSensors();
-   _wire->reset();
-   _wire->write( 0xCC, 0); /* Skip ROM - All sensors */
-   _wire->write( 0x44, 0); /* start conversion, with parasite power off at the end */
+    _wire->reset();
+    _wire->write( 0xCC, 0); /* Skip ROM - All sensors */
+    _wire->write( 0x44, 0); /* start conversion, with parasite power off at the end */
     vTaskDelay( 750 ); //wait for conversion ready
     uint8_t num = 0;
     while ( num < loopCounter ) {
       byte data[12];
-     _tempState[num].error = true; /* we start with an error, which will be cleared if the CRC checks out. */
-     _wire->reset();
-     _wire->select( _tempState[num].addr );
-     _wire->write( 0xBE );         /* Read Scratchpad */
+      _tempState[num].error = true; /* we start with an error, which will be cleared if the CRC checks out. */
+      _wire->reset();
+      _wire->select( _tempState[num].addr );
+      _wire->write( 0xBE );         /* Read Scratchpad */
       for ( byte i = 0; i < 9; i++ ) data[i] = _wire->read(); // we need 9 bytes
       ESP_LOGD( TAG, "Sensor %i data=%02x%02x%02x%02x%02x%02x%02x%02x%02x", num,
                      data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7], data[8] );
       byte type_s;
       // the first ROM byte indicates which chip
       switch ( _tempState[num].addr[0] ) {
-        case 0x10:
+        case 0x10: {
           ESP_LOGD( TAG, "Dallas sensor type : DS18S20" );  /* or old DS1820 */
           type_s = 1;
           break;
-        case 0x28:
+        }
+        case 0x28: {
           ESP_LOGD( TAG, "Dallas sensor type : DS18B20");
           type_s = 0;
           break;
-        case 0x22:
+        }
+        case 0x22: {
           ESP_LOGD( TAG, "Dallas sensor type : DS1822");
           type_s = 0;
           break;
+        }
         default:
           ESP_LOGE( TAG, "OneWire device is not a DS18x20 family device.");
       }
@@ -276,27 +284,25 @@ void FFatSensor::run( void * data ) {
       ESP_LOGD( TAG, "sensor %i: %.1f %s", num, _tempState[num].tempCelsius, _tempState[num].error ? "invalid" : "valid" );
       num++;
     }
-    memcpy( &_state, &_tempState, sizeof( sensorState_t[ MAX_NUMBER_OF_SENSORS ] ) );
+    _state = _tempState;
     _count = loopCounter;
 
     if ( tempLogTicker ) {
-      time_t                  now;
-      struct tm          timeinfo;
-      char           fileName[17];
-
-      time( &now );
-      localtime_r( &now, &timeinfo );
-      strftime( fileName , sizeof( fileName ), "/%F.log", &timeinfo );
-
       _deleteOldLogfiles( FFat, "/", 0 );
 
-      char content[60];
-      uint8_t charCount = 0;
+      time_t now = time(NULL);
+      struct tm timeinfo;
+      localtime_r( &now, &timeinfo );
+      char fileName[17];
+      strftime( fileName , sizeof( fileName ), "/%F.log", &timeinfo );
+
+      char content[35];
+      uint8_t used = 0;
       if ( loopCounter ) {
-        charCount += snprintf( content, sizeof( content ), "%i,", now );
-        charCount += snprintf( content + charCount, sizeof( content ) - charCount, "%3.2f", _tempState[0].tempCelsius  );
-        for  ( uint8_t sensorNumber = 1; sensorNumber < loopCounter; sensorNumber++ )
-          charCount += snprintf( content + charCount, sizeof( content ) - charCount, ",%3.2f", _tempState[sensorNumber].tempCelsius  );
+        timeStampBuffer_t tsb;
+        used += snprintf( content, sizeof( content ), "%s,%3.2f", timeStamp( UNIX_TIME, tsb ), _tempState[0].tempCelsius );
+        for ( uint8_t num = 1; num < loopCounter; num++ )
+          used += snprintf( content + used, sizeof( content ) - used, ",%3.2f", _tempState[num].tempCelsius  );
         if ( !_writelnFile( fileName, content ) )
           ESP_LOGE( TAG, "%s", "Failed to write to log file." );
       }
@@ -310,18 +316,14 @@ void FFatSensor::run( void * data ) {
 }
 
 uint8_t FFatSensor::_scanSensors() {
-  uint8_t num = 0;
-  sensorAddr_t currentAddr;
- _wire->reset_search();
- _wire->target_search(0x28);
-  vTaskPrioritySet( NULL, 10 );
-  while ( _wire->search( currentAddr ) && ( num < MAX_NUMBER_OF_SENSORS ) ) {
-    _tempState[num].error = true;
-    _tempState[num].tempCelsius = NAN;
-    memcpy( _tempState[num].addr, currentAddr, sizeof( sensorState_t::addr ) );
+  _wire->reset_search();
+  _wire->target_search(0x28);
+  uint8_t num(0);
+  sensorAddr_t addr;
+  while ( _wire->search( addr ) && ( num < _maxSensors ) ) {
+    memcpy( _tempState[num].addr, addr, sizeof( sensorAddr_t ) );
     num++;
   }
-  vTaskPrioritySet( NULL, 0);
   _rescan = false;
   return num;
 }
