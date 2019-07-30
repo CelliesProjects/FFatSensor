@@ -1,7 +1,9 @@
 ## FFatSensor
 ESP32 Arduino IDE library for managing OneWire DS18B20 temperature sensors.
+<br>Get easy temperature readings and log these to FFat.
+<br>Just set the number of desired sensors and a GPIO pin number and you are good to go.
 
-#### An easy interface for OneWire DS18B20 sensors.
+#### An simple interface for OneWire DS18B20 sensors.
 - `logger.startSensors( 3, 5 )`
 <br>Starts max 3 sensors on GPIO 5 that are scanned and updated every 750ms.
 - `logger.sensorCount()`
@@ -29,17 +31,21 @@ Temperature logging writes to a csv file formatted as `1970-01-01.log` if no sys
 <br>In a console this would be: `new Date( 1564356928 * 1000 )`
 - `26.69,23.00,18.44` are the logged sensor temperatures at that time.
 #### Wait! There's more!
-- `sensor.startErrorLogging()` starts sensor error logging to FFat.
-- `sensor.stopErrorLogging()` stops sensor error logging to FFat.
+- `sensor.startErrorLogging()`
+<br>Starts sensor error logging to FFat.
+- `sensor.stopErrorLogging()`
+<br>Stops sensor error logging to FFat.
+- `sensor.isErrorLogging()`
+<br>Gives the current error logging state.
 
 Error logging writes to `sensor_error.txt`.
 <br>Error logging is based on calender time.
 
-Runs fine without FFat, but then you have no logging ofcourse.
+FFatSensor runs fine without FFat partition mounted, but then you have no logging ofcourse.
 
 #### Depends on:
 - ESP32 FFat library. (only needed to log to file)
-- ESP32 [OneWire](https://github.com/stickbreaker/OneWire) library by stickbreaker.
+- ESP32 [OneWire](https://github.com/stickbreaker/OneWire) library by Chuck Todd.
 <br>Use this library instead of the standard Arduino version which will not work for ESP32 MCUs.
 - ESP32 [Task](https://github.com/CelliesProjects/Task) by Neil Kolban.
 
