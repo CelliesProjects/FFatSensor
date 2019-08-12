@@ -1,6 +1,6 @@
 ## FFatSensor
 ESP32 Arduino IDE library for managing OneWire DS18B20 temperature sensors.
-<br>Get easy temperature readings and log these to FFat.
+<br>Get easy temperature readings between -55° and +85° and log these to FFat.
 <br>Just set the number of desired sensors and a GPIO pin number and you are good to go.
 
 #### An simple interface for OneWire DS18B20 sensors.
