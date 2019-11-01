@@ -1,3 +1,5 @@
+[![Codacy Badge](https://api.codacy.com/project/badge/Grade/c452fe07342548edad149c309ca34e9a)](https://www.codacy.com/manual/CelliesProjects/FFatSensor?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=CelliesProjects/FFatSensor&amp;utm_campaign=Badge_Grade)
+
 ## FFatSensor
 ESP32 Arduino IDE library for managing OneWire DS18B20 temperature sensors.
 <br>Get easy temperature readings between -55° and +85° and log these to FFat.
