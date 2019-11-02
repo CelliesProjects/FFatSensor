@@ -23,6 +23,7 @@ static hw_timer_t *   tempLogTimer = NULL;
 static portMUX_TYPE       timerMux = portMUX_INITIALIZER_UNLOCKED;
 
 static bool _rescan = false;
+static bool _restart = false;
 
 /* static functions */
 static void IRAM_ATTR _onTimer() {
@@ -157,6 +158,7 @@ bool FFatSensor::startTempLogging( const uint32_t seconds ) {
   timerAttachInterrupt(tempLogTimer, &_onTimer, true);
   timerAlarmWrite(tempLogTimer, seconds * 1000000, true);
   timerAlarmEnable(tempLogTimer);
+  _restart = true;
   _onTimer();
   _saveTempLogStateToNVS( TEMPLOG_ON );
   return true;
@@ -295,12 +297,15 @@ void FFatSensor::run( void * data ) {
       localtime_r( &now, &timeinfo );
       char fileName[17];
       strftime( fileName , sizeof( fileName ), "/%F.log", &timeinfo );
-
       char content[35];
-      uint8_t used = 0;
       if ( loopCounter ) {
         timeStampBuffer_t tsb;
-        used += snprintf( content, sizeof( content ), "%s,%3.2f", timeStamp( UNIX_TIME, tsb ), _tempState[0].tempCelsius );
+        if ( _restart ) {
+          snprintf( content, sizeof( content ), "#%s,FFatSensor start", timeStamp( UNIX_TIME, tsb ) );
+          if ( !_writelnFile( fileName, content ) ) ESP_LOGE( TAG, "%s", "Failed to write to log file." );
+          _restart = false;
+        }
+        uint8_t used = snprintf( content, sizeof( content ), "%s,%3.2f", timeStamp( UNIX_TIME, tsb ), _tempState[0].tempCelsius );
         for ( uint8_t num = 1; num < loopCounter; num++ )
           used += snprintf( content + used, sizeof( content ) - used, ",%3.2f", _tempState[num].tempCelsius  );
         if ( !_writelnFile( fileName, content ) )
