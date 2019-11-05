@@ -31,7 +31,7 @@ public:
   FFatSensor();
   virtual ~FFatSensor();
   /*sensor routines */
-  bool                  startSensors( const uint8_t num, const uint8_t pin );
+  bool                  startSensors( const uint8_t num, const uint8_t pin, const uint8_t hw_timer=0 );
   void                  rescanSensors();
   uint8_t               sensorCount() { return _count; };
   float                 sensorTemp( const uint8_t num ) { return _state[num].tempCelsius; };
@@ -53,6 +53,7 @@ public:
   const char *          timeStamp( const timeStamp_t type , timeStampBuffer_t &tsb );
 
 private:
+  uint8_t               _hw_timer = 0;
   uint8_t               _maxSensors = 0;
   uint8_t               _count = 0;
   sensorState_t *       _state = nullptr;
