@@ -7,32 +7,37 @@ ESP32 Arduino IDE library for managing OneWire DS18B20 temperature sensors.
 <br>Just set the number of desired sensors and a GPIO pin number and you are good to go.
 
 #### An simple interface for OneWire DS18B20 sensors.
+
 - `logger.startSensors( 3, 5 )`
 <br>Starts max 3 sensors on GPIO 5 that are scanned and updated every 750ms.
+- `logger.startSensors( 3, 5, 1 )`
+<br>Starts max 3 sensors on GPIO 5 that are scanned and updated every 750ms.
+<br>Use ESP32 HW timer 1. If no timer number is given, timer 0 will be used.
 - `logger.sensorCount()`
 <br>Get the number of sensors actually connected.
 - `logger.getSensorTemp( 0 )`
 <br>Get a temperature reading from the first sensor.
 
 #### With easy temperature logging to FFat.
+
 - `sensor.startTempLogging( 180 )`
 <br>Starts temperature logging to FFat every 180 seconds.
-<br>The interval and log state are saved in NVS. 
-<br>If after a reboot `startSensors()` is called logging will resume with the specified interval. 
+<br>The interval and log state are saved in NVS.
+<br>If after a reboot `startSensors()` is called logging will resume with the specified interval.
 - `sensor.stopTempLogging()`
-<br>Stops temperature logging to FFat. 
+<br>Stops temperature logging to FFat.
 - `sensor.isTempLogging()`
 <br>Gives the current temperature logging state.
 
-Temperature logging writes to a csv file formatted as `1970-01-01.log` if no system time is set before.
-<br>Logging is based on UTC. A typical log entry looks like:
+Temperature logging writes to a csv file formatted as `1970-01-01.log` if no system time is set before. Logging is based on UTC. A typical log entry looks like:
+
 ````bash
 1564356928,26.69,23.00,18.44
 ````
-- Where `1564356928` is `Mon Jul 29 2019 01:35:28 GMT+0200 (Central European Summer Time)`
-<br>JS `Date` is the number of milliseconds since 01-01-1970 while the UNIX time is the number of seconds since then.
-<br>So to process these time values with JavaScript just take the UNIX time value and multiply it with 1000 to get a valid JS `Date` object. 
-<br>In a console this would be: `new Date( 1564356928 * 1000 )`
+
+- The number `1564356928` is the Unix time `Mon Jul 29 2019 01:35:28 GMT+0200` when used in JS as: `new Date( 1564356928 * 1000 )`.
+<br>Because JS `Date` is the number of milliseconds since 01-01-1970 while the UNIX time is the number of seconds since then.
+<br>So to process these time values with JavaScript just take the UNIX time value and multiply it with 1000 to get a valid JS `Date` object. (with a one second resolution ofcourse)
 - `26.69,23.00,18.44` are the logged sensor temperatures at that time.
 - A start marker is written to the log file every time sensors are started.
 <br>A start marker looks like `#1572769710,FFatSensor start` where the number is a UNIX timestamp.
@@ -54,8 +59,7 @@ FFatSensor runs fine without FFat partition mounted, but then you have no loggin
 #### Depends on:
 
 - ESP32 FFat library. (only needed to log to file)
-- ESP32 [OneWire](https://github.com/stickbreaker/OneWire) library by Chuck Todd.
-<br>Use this library instead of the standard Arduino version which will not work for ESP32 MCUs.
+- ESP32 [OneWire](https://github.com/stickbreaker/OneWire) library by Chuck Todd. Use this library instead of the standard Arduino version which will not work for ESP32 MCUs.
 - ESP32 [Task](https://github.com/CelliesProjects/Task) by Neil Kolban.
 
 #### How to use:

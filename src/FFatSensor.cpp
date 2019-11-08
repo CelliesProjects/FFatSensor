@@ -78,7 +78,7 @@ static inline bool _saveTempLogStateToNVS( const bool state ) {
 FFatSensor::FFatSensor() {}
 FFatSensor::~FFatSensor() {}
 
-bool FFatSensor::startSensors( const uint8_t num, const uint8_t pin ) {
+bool FFatSensor::startSensors( const uint8_t num, const uint8_t pin, const uint8_t hw_timer ) {
   if ( nullptr != _wire ) {
     ESP_LOGE( TAG, "Sensors already running. Exiting." );
     return false;
@@ -102,6 +102,7 @@ bool FFatSensor::startSensors( const uint8_t num, const uint8_t pin ) {
     return false;
   }
   _maxSensors = num;
+  _hw_timer = hw_timer;
 
   ESP_LOGD( TAG, "Created %i sensor objects.", num );
   sensorPreferences.begin( NVSKEY_NAMESPACE, false );
@@ -154,7 +155,7 @@ bool FFatSensor::startTempLogging() {
 bool FFatSensor::startTempLogging( const uint32_t seconds ) {
   if ( NULL != tempLogTimer ) return false;
   sensorPreferences.putULong( NVSKEY_INTERVAL, seconds );
-  tempLogTimer = timerBegin(0, 80, true);
+  tempLogTimer = timerBegin(_hw_timer, 80, true);
   timerAttachInterrupt(tempLogTimer, &_onTimer, true);
   timerAlarmWrite(tempLogTimer, seconds * 1000000, true);
   timerAlarmEnable(tempLogTimer);
